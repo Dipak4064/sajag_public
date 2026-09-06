@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# SAJAG project locations
+PUBLIC="/home/dipak/hacathon/sajag_public"
+ADMIN="/home/dipak/hacathon/sajag_admin"
+BACKEND="/home/dipak/hacathon/sajag_backend"
+
+SESSION="sajag"
+
+# Check if session already exists
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+    echo "SAJAG is already running."
+    tmux attach-session -t "$SESSION"
+    exit 0
+fi
+
+echo "Starting SAJAG Platform..."
+
+# 1. Create session with Citizen Public Portal (Port 3000)
+tmux new-session -d -s "$SESSION" -n "SAJAG"
+tmux send-keys -t "$SESSION:0" "cd '$PUBLIC' && npm run dev" C-m
+
+# 2. Split horizontally for Admin Command Center (Port 3001)
+tmux split-window -h -t "$SESSION:0"
+tmux send-keys -t "$SESSION:0" "cd '$ADMIN' && npm run dev" C-m
+
+# 3. Split first pane vertically for Backend API (Port 4000)
+tmux split-window -v -t "$SESSION:0.0"
+tmux send-keys -t "$SESSION:0.1" "cd '$BACKEND' && node infrastructure/broker.js & npm run dev:api" C-m
+
+# 4. Split second pane vertically for Virtual ESP32 Simulator (Port 4001)
+tmux split-window -v -t "$SESSION:0.2"
+tmux send-keys -t "$SESSION:0.3" "cd '$BACKEND' && npm run dev:sim" C-m
+
+# Arrange panes into a neat 2x2 grid
+tmux select-layout -t "$SESSION:0" tiled
+
+# Attach to session
+tmux attach-session -t "$SESSION"
