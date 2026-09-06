@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { motion } from 'framer-motion';
+import { fadeIn } from '@/lib/motion';
 
 const MapContainer = dynamic(
   () => import('react-leaflet').then((mod) => mod.MapContainer),
@@ -49,12 +51,15 @@ export default function CitizenMap({
 
   if (!mounted || !L) {
     return (
-      <div 
-        style={{ height }} 
-        className="w-full bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center text-slate-500 text-xs"
+      <motion.div
+        variants={fadeIn}
+        initial="hidden"
+        animate="show"
+        style={{ height }}
+        className="w-full glass-card rounded-2xl flex items-center justify-center text-slate-500 text-xs"
       >
         Loading Evacuation Map...
-      </div>
+      </motion.div>
     );
   }
 
@@ -65,9 +70,9 @@ export default function CitizenMap({
         width: 24px;
         height: 24px;
         border-radius: 50%;
-        background: #3b82f6;
+        background: #22d3ee;
         border: 3px solid #ffffff;
-        box-shadow: 0 0 12px rgba(59, 130, 246, 0.8);
+        box-shadow: 0 0 14px rgba(34, 211, 238, 0.85);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -104,7 +109,13 @@ export default function CitizenMap({
   });
 
   return (
-    <div style={{ height }} className="w-full rounded-2xl overflow-hidden border border-slate-800 relative z-0">
+    <motion.div
+      variants={fadeIn}
+      initial="hidden"
+      animate="show"
+      style={{ height }}
+      className="w-full rounded-2xl overflow-hidden border border-cyan-400/15 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04),0_0_24px_-16px_rgba(34,211,238,0.7),0_8px_30px_-12px_rgba(0,0,0,0.6)] relative z-0"
+    >
       {/* @ts-ignore */}
       <MapContainer
         center={[userLocation.lat, userLocation.lng]}
@@ -124,9 +135,9 @@ export default function CitizenMap({
         <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon}>
           {/* @ts-ignore */}
           <Popup className="custom-popup">
-            <div className="p-1 text-slate-900 font-sans">
-              <strong className="block text-xs font-bold text-blue-600">Your Detected Location</strong>
-              <p className="text-[11px] text-slate-600">Kathmandu Basin</p>
+            <div className="p-1 text-slate-100 font-sans">
+              <strong className="block text-xs font-bold text-cyan-300">Your Detected Location</strong>
+              <p className="text-[11px] text-slate-400">Kathmandu Basin</p>
             </div>
           </Popup>
         </Marker>
@@ -135,10 +146,10 @@ export default function CitizenMap({
         {shelters.map((s) => (
           <Marker key={s.id} position={[s.latitude, s.longitude]} icon={shelterIcon}>
             <Popup className="custom-popup">
-              <div className="p-1 text-slate-900 font-sans">
-                <strong className="block text-xs font-bold text-emerald-700">{s.name}</strong>
-                <p className="text-[11px] text-slate-600">{s.address}</p>
-                <div className="mt-1 flex items-center gap-1.5 text-[10px] text-emerald-600 font-semibold">
+              <div className="p-1 text-slate-100 font-sans">
+                <strong className="block text-xs font-bold text-emerald-300">{s.name}</strong>
+                <p className="text-[11px] text-slate-400">{s.address}</p>
+                <div className="mt-1 flex items-center gap-1.5 text-[10px] text-emerald-400 font-semibold">
                   <span>Capacity: {s.currentOccupancy}/{s.totalCapacity}</span>
                   {s.hasMedicalFacility && <span>• 🏥 Medical</span>}
                 </div>
@@ -161,11 +172,11 @@ export default function CitizenMap({
               dashArray: '4, 8'
             }}
           >
-            <Popup>
-              <div className="p-1 text-slate-900 font-sans">
-                <strong className="block text-xs font-bold text-red-600">⚠️ {d.title || d.type}</strong>
-                <p className="text-[11px] text-slate-700">{d.description}</p>
-                <span className="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.5 rounded font-bold">
+            <Popup className="custom-popup">
+              <div className="p-1 text-slate-100 font-sans">
+                <strong className="block text-xs font-bold text-red-400">⚠️ {d.title || d.type}</strong>
+                <p className="text-[11px] text-slate-300">{d.description}</p>
+                <span className="text-[10px] bg-red-500/20 border border-red-500/40 text-red-200 px-1.5 py-0.5 rounded font-bold">
                   Danger Radius: {((d.radiusMeters || 3000) / 1000).toFixed(1)} km
                 </span>
               </div>
@@ -173,6 +184,6 @@ export default function CitizenMap({
           </Circle>
         ))}
       </MapContainer>
-    </div>
+    </motion.div>
   );
 }

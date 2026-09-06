@@ -2,9 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Navigation, CheckCircle2, ShieldCheck, Zap, MapPin, Tent } from 'lucide-react';
 import { api } from '@/lib/api';
 import CitizenMap from '@/components/map/citizen-map';
+import { fadeUp, fadeIn, staggerContainer } from '@/lib/motion';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 export default function SheltersPage() {
   const [shelters, setShelters] = useState<any[]>([]);
@@ -106,121 +111,160 @@ export default function SheltersPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-5 space-y-4">
+    <motion.div
+      variants={staggerContainer()}
+      initial="hidden"
+      animate="show"
+      className="max-w-3xl mx-auto px-4 py-5 space-y-4"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-        <Link href="/" className="text-slate-400 hover:text-white flex items-center gap-1 text-xs font-semibold">
+      <motion.div variants={fadeUp} className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+        <Link href="/" className="text-slate-400 hover:text-cyan-300 flex items-center gap-1 text-xs font-semibold transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back to Dashboard
         </Link>
         <span className="font-bold text-slate-200 text-xs uppercase tracking-wider flex items-center gap-1">
           <Tent className="w-3.5 h-3.5 text-emerald-400" /> Designated Safe Havens
         </span>
-      </div>
+      </motion.div>
 
       {/* Intro & View Toggle */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <p className="text-xs text-slate-400">
           Designated safe open spaces and evacuation havens across Kathmandu Valley verified by NDMA & Red Cross.
         </p>
-        <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs self-end sm:self-auto">
+        <div className="flex items-center gap-1 glass-card p-1 rounded-xl text-xs self-end sm:self-auto relative">
           <button
             onClick={() => setViewMode('list')}
-            className={`px-3 py-1 rounded-lg font-bold transition-colors ${
-              viewMode === 'list' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'
+            className={`relative px-3 py-1 rounded-lg font-bold z-10 transition-colors ${
+              viewMode === 'list' ? 'text-cyan-200' : 'text-slate-400 hover:text-cyan-300'
             }`}
           >
             List
           </button>
           <button
             onClick={() => setViewMode('map')}
-            className={`px-3 py-1 rounded-lg font-bold transition-colors ${
-              viewMode === 'map' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'
+            className={`relative px-3 py-1 rounded-lg font-bold z-10 transition-colors ${
+              viewMode === 'map' ? 'text-cyan-200' : 'text-slate-400 hover:text-cyan-300'
             }`}
           >
             Map View
           </button>
+          <motion.div
+            layoutId="shelters-view-toggle"
+            transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+            className="absolute inset-y-1 bg-cyan-400/15 border border-cyan-400/30 rounded-lg"
+            style={{
+              width: 'calc(50% - 4px)',
+              left: viewMode === 'list' ? '4px' : 'calc(50% + 0px)'
+            }}
+          />
         </div>
-      </div>
+      </motion.div>
 
       {/* Map View */}
-      {viewMode === 'map' && (
-        <div className="space-y-3">
-          <CitizenMap
-            userLocation={userLocation}
-            shelters={shelters}
-            height="450px"
-          />
-          <div className="flex items-center justify-between text-[11px] text-slate-400 px-2">
-            <span>📍 Blue dot = You</span>
-            <span>🏕️ Green icon = Safe Haven Shelter</span>
-          </div>
-        </div>
-      )}
+      <AnimatePresence mode="wait">
+        {viewMode === 'map' && (
+          <motion.div
+            key="map"
+            variants={fadeIn}
+            initial="hidden"
+            animate="show"
+            exit={{ opacity: 0 }}
+            className="space-y-3"
+          >
+            <CitizenMap
+              userLocation={userLocation}
+              shelters={shelters}
+              height="450px"
+            />
+            <div className="flex items-center justify-between text-[11px] text-slate-400 px-2">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-glow-cyan inline-block" /> Cyan dot = You
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> Green icon = Safe Haven Shelter
+              </span>
+            </div>
+          </motion.div>
+        )}
 
-      {/* List View */}
-      {viewMode === 'list' && (
-        <div className="space-y-3">
-          {loading ? (
-            <div className="text-center py-12 text-xs text-slate-500">Loading verified safe shelters...</div>
-          ) : (
-            shelters.map((s) => {
-              const available = s.availableBeds || (s.totalCapacity - s.currentOccupancy);
-              return (
-                <div key={s.id} className="p-4 bg-slate-900 border border-slate-800 rounded-2xl space-y-3 transition-all hover:border-slate-700">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="text-sm font-extrabold text-white">{s.name}</h3>
-                      {s.nameNe && <p className="text-xs text-slate-400 font-serif">{s.nameNe}</p>}
+        {/* List View */}
+        {viewMode === 'list' && (
+          <motion.div
+            key="list"
+            variants={staggerContainer(0.08)}
+            initial="hidden"
+            animate="show"
+            exit={{ opacity: 0 }}
+            className="space-y-3"
+          >
+            {loading ? (
+              <div className="text-center py-12 text-xs text-slate-500">Loading verified safe shelters...</div>
+            ) : (
+              shelters.map((s) => {
+                const available = s.availableBeds || (s.totalCapacity - s.currentOccupancy);
+                return (
+                  <motion.div key={s.id} variants={fadeUp} whileHover={{ y: -3 }}>
+                  <Card className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-extrabold text-white">{s.name}</h3>
+                        {s.nameNe && <p className="text-xs text-slate-400 font-serif">{s.nameNe}</p>}
+                      </div>
+                      <Badge variant="success" className="shrink-0">
+                        {available} spots open
+                      </Badge>
                     </div>
-                    <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 shrink-0">
-                      {available} spots open
-                    </span>
-                  </div>
 
-                  <p className="text-xs text-slate-400 flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" /> {s.address}
-                  </p>
+                    <p className="text-xs text-slate-400 flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" /> {s.address}
+                    </p>
 
-                  {/* Facility Badges */}
-                  <div className="flex flex-wrap gap-1.5 text-[11px]">
-                    {s.hasMedicalFacility && (
-                      <span className="px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg flex items-center gap-1 font-medium">
-                        <ShieldCheck className="w-3 h-3" /> Medical Clinic
-                      </span>
-                    )}
-                    {s.hasBackupPower && (
-                      <span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg flex items-center gap-1 font-medium">
-                        <Zap className="w-3 h-3" /> Generator Power
-                      </span>
-                    )}
-                    {s.hasFoodWater && (
-                      <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg flex items-center gap-1 font-medium">
-                        <CheckCircle2 className="w-3 h-3" /> Rations & Drinking Water
-                      </span>
-                    )}
-                  </div>
+                    {/* Facility Badges */}
+                    <div className="flex flex-wrap gap-1.5 text-[11px]">
+                      {s.hasMedicalFacility && (
+                        <Badge variant="info" className="normal-case">
+                          <ShieldCheck className="w-3 h-3" /> Medical Clinic
+                        </Badge>
+                      )}
+                      {s.hasBackupPower && (
+                        <Badge variant="warning" className="normal-case">
+                          <Zap className="w-3 h-3" /> Generator Power
+                        </Badge>
+                      )}
+                      {s.hasFoodWater && (
+                        <Badge variant="success" className="normal-case">
+                          <CheckCircle2 className="w-3 h-3" /> Rations & Drinking Water
+                        </Badge>
+                      )}
+                    </div>
 
-                  {/* Footer & Navigation link */}
-                  <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-medium">
-                    <span className="text-blue-400 flex items-center gap-1 font-semibold">
-                      <Navigation className="w-3.5 h-3.5" />
-                      {s.distanceMeters ? `${(s.distanceMeters / 1000).toFixed(1)} km from your location` : 'Nearby'}
-                    </span>
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${s.latitude},${s.longitude}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold transition-colors"
-                    >
-                      Get Directions ↗
-                    </a>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
-    </div>
+                    {/* Footer & Navigation link */}
+                    <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs font-medium">
+                      <span className="text-cyan-300 flex items-center gap-1 font-semibold">
+                        <Navigation className="w-3.5 h-3.5" />
+                        {s.distanceMeters ? `${(s.distanceMeters / 1000).toFixed(1)} km from your location` : 'Nearby'}
+                      </span>
+                      <motion.div whileTap={{ scale: 0.95 }}>
+                        <Button asChild variant="default">
+                          <a
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${s.latitude},${s.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Get Directions ↗
+                          </a>
+                        </Button>
+                      </motion.div>
+                    </div>
+                  </Card>
+                  </motion.div>
+                );
+              })
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { motion, AnimatePresence, useMotionValue, animate } from 'framer-motion';
 import {
   AlertTriangle,
   ShieldAlert,
@@ -20,6 +21,12 @@ import {
 import { api } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import CitizenMap from '@/components/map/citizen-map';
+import { fadeUp, scaleIn, staggerContainer, spring, softSpring } from '@/lib/motion';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+
+const MotionLink = motion(Link);
 
 export default function CitizenDashboard() {
   const [activeAlerts, setActiveAlerts] = useState<any[]>([]);
@@ -29,6 +36,20 @@ export default function CitizenDashboard() {
   const [locationName, setLocationName] = useState('Balkhu, Ward 14, Kathmandu');
   const [userLocation, setUserLocation] = useState({ lat: 27.6895, lng: 85.3021 });
   const [safetyStatusMarked, setSafetyStatusMarked] = useState<string | null>(null);
+
+  // Animated count-up for the hazard risk score
+  const scoreMotionValue = useMotionValue(riskScore);
+  const [displayScore, setDisplayScore] = useState(riskScore);
+
+  useEffect(() => {
+    const controls = animate(scoreMotionValue, riskScore, {
+      duration: 0.8,
+      ease: 'easeOut',
+      onUpdate: (v) => setDisplayScore(Math.round(v))
+    });
+    return () => controls.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [riskScore]);
 
   useEffect(() => {
     // 1. Try browser geolocation
@@ -98,12 +119,24 @@ export default function CitizenDashboard() {
     };
   }, [userLocation.lat, userLocation.lng]);
 
+  /* Semantic hazard ramp: emerald (all clear) → amber (moderate) → orange (high) → red (critical).
+     Red only ever appears in the critical band. */
   const getRiskColor = (score: number) => {
-    if (score >= 80) return 'text-red-500 bg-red-500/10 border-red-500/30';
-    if (score >= 60) return 'text-orange-500 bg-orange-500/10 border-orange-500/30';
-    if (score >= 30) return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/30';
-    return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30';
+    if (score >= 80) return 'text-red-400 bg-red-500/10 border-red-500/40';
+    if (score >= 60) return 'text-orange-300 bg-orange-500/10 border-orange-500/35';
+    if (score >= 30) return 'text-amber-300 bg-amber-500/10 border-amber-500/35';
+    return 'text-emerald-300 bg-emerald-500/10 border-emerald-500/35';
   };
+
+  const getRiskBadgeVariant = (score: number): 'destructive' | 'warning' | 'success' => {
+    if (score >= 80) return 'destructive';
+    if (score >= 30) return 'warning';
+    return 'success';
+  };
+
+  /* The "high" band sits between amber and red — Badge has no orange variant, so tint it here. */
+  const getRiskBadgeClass = (score: number) =>
+    score >= 60 && score < 80 ? 'border-orange-500/40 bg-orange-500/10 text-orange-300' : '';
 
   const getRiskLabel = (score: number) => {
     if (score >= 80) return 'CRITICAL EMERGENCY';
@@ -125,44 +158,62 @@ export default function CitizenDashboard() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-5 space-y-5">
+    <motion.div
+      variants={staggerContainer()}
+      initial="hidden"
+      animate="show"
+      className="max-w-[900px] mx-auto px-4 py-5 space-y-5"
+    >
       {/* Location Bar & Status */}
-      <div className="flex items-center justify-between text-xs text-slate-400 bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+      <motion.div
+        variants={fadeUp}
+        className="flex items-center justify-between text-xs text-slate-400 glass-card p-3 rounded-xl"
+      >
         <div className="flex items-center gap-1.5 truncate">
-          <Navigation className="w-3.5 h-3.5 text-red-500 shrink-0" />
+          <Navigation className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
           <span className="truncate">{locationName}</span>
         </div>
         <span className="shrink-0 text-slate-500 font-mono text-[11px]">
           {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
         </span>
-      </div>
+      </motion.div>
 
       {/* Real-time Emergency Warning Banner */}
-      {activeAlerts.length > 0 && (
-        <div className="p-4 bg-gradient-to-r from-red-950 to-rose-950 border border-red-600 rounded-2xl animate-pulse shadow-lg shadow-red-950/40">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-2 text-red-400 font-extrabold text-sm mb-1">
-              <AlertTriangle className="w-5 h-5 shrink-0" />
-              <span>{activeAlerts[0].title || 'URGENT DISASTER WARNING'}</span>
+      <AnimatePresence>
+        {activeAlerts.length > 0 && (
+          <motion.div
+            key="emergency-banner"
+            initial={{ opacity: 0, scale: 0.9, y: -12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94 }}
+            transition={spring}
+            className="p-4 bg-gradient-to-r from-red-950 to-rose-950 border border-red-500 rounded-2xl shadow-glow-red animate-glow-pulse"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2 text-red-400 font-extrabold text-sm mb-1">
+                <AlertTriangle className="w-5 h-5 shrink-0" />
+                <span>{activeAlerts[0].title || 'URGENT DISASTER WARNING'}</span>
+              </div>
+              <Badge variant="destructive" className="border-transparent bg-red-600 text-white">
+                {activeAlerts[0].severity || 'CRITICAL'}
+              </Badge>
             </div>
-            <span className="text-[10px] bg-red-600 text-white font-black px-2 py-0.5 rounded-full uppercase">
-              {activeAlerts[0].severity || 'CRITICAL'}
-            </span>
-          </div>
-          <p className="text-xs text-red-100 mt-1 leading-relaxed">
-            {activeAlerts[0].description || 'Bagmati river level exceeded hazard threshold. Evacuate low-lying corridors.'}
-          </p>
-          <div className="mt-3 pt-3 border-t border-red-800/60 flex items-center justify-between text-xs text-red-200">
-            <span>Radius: 5 km geofence</span>
-            <Link href="/shelters" className="font-bold underline flex items-center gap-1 hover:text-white">
-              Evacuate to Nearest Shelter <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-        </div>
-      )}
+            <p className="text-xs text-red-100 mt-1 leading-relaxed">
+              {activeAlerts[0].description || 'Bagmati river level exceeded hazard threshold. Evacuate low-lying corridors.'}
+            </p>
+            <div className="mt-3 pt-3 border-t border-red-800/60 flex items-center justify-between text-xs text-red-200">
+              <span>Radius: 5 km geofence</span>
+              <Link href="/shelters" className="font-bold underline flex items-center gap-1 hover:text-white">
+                Evacuate to Nearest Shelter <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Community Hazard Index Gauge */}
-      <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+      <motion.div variants={fadeUp}>
+      <Card className="p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-bold text-white uppercase tracking-wider">
@@ -170,14 +221,28 @@ export default function CitizenDashboard() {
             </h2>
             <p className="text-[11px] text-slate-400">Kathmandu Basin Multi-Sensor Composite</p>
           </div>
-          <span className={`text-xs px-2.5 py-1 rounded-full font-extrabold border ${getRiskColor(riskScore)}`}>
+          <Badge
+            variant={getRiskBadgeVariant(riskScore)}
+            className={`text-xs px-2.5 py-1 normal-case ${getRiskBadgeClass(riskScore)}`}
+          >
             {getRiskLabel(riskScore)}
-          </span>
+          </Badge>
         </div>
 
         {/* Big Meter Value */}
         <div className="flex items-baseline gap-2">
-          <span className="text-5xl font-black text-white">{riskScore}</span>
+          <AnimatePresence mode="popLayout">
+            <motion.span
+              key={displayScore}
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              transition={{ duration: 0.18 }}
+              className="text-5xl font-black text-white tabular-nums"
+            >
+              {displayScore}
+            </motion.span>
+          </AnimatePresence>
           <span className="text-slate-500 font-bold text-sm">/ 100</span>
           <span className="text-xs text-slate-400 ml-auto">
             Updated just now from IoT Network
@@ -185,42 +250,48 @@ export default function CitizenDashboard() {
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden p-0.5">
+        <div className="w-full bg-white/[0.06] rounded-full h-3 overflow-hidden p-0.5">
           <div
             className={`h-full rounded-full transition-all duration-700 ${
-              riskScore >= 60 ? 'bg-gradient-to-r from-orange-500 to-red-600' : riskScore >= 30 ? 'bg-yellow-500' : 'bg-emerald-500'
+              riskScore >= 80
+                ? 'bg-gradient-to-r from-orange-500 to-red-600'
+                : riskScore >= 60
+                ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                : riskScore >= 30
+                ? 'bg-gradient-to-r from-emerald-500 to-amber-500'
+                : 'bg-gradient-to-r from-emerald-500 to-emerald-400'
             }`}
             style={{ width: `${Math.min(riskScore, 100)}%` }}
           />
         </div>
 
         {/* 4 Multi-Hazard Sensors Mini Breakdown */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800/80 text-xs">
-          <div className="p-2.5 bg-slate-950/60 rounded-xl border border-slate-800 flex items-center gap-2">
-            <Droplets className="w-4 h-4 text-blue-400" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-white/[0.06] text-xs">
+          <div className="p-2.5 bg-white/[0.03] rounded-xl border border-white/[0.06] flex items-center gap-2">
+            <Droplets className="w-4 h-4 text-sky-400" />
             <div>
               <div className="text-[10px] text-slate-400 font-medium">Bagmati Basin</div>
               <div className="font-bold text-white">{riskScore >= 60 ? 'High Level' : 'Normal'}</div>
             </div>
           </div>
 
-          <div className="p-2.5 bg-slate-950/60 rounded-xl border border-slate-800 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-purple-400" />
+          <div className="p-2.5 bg-white/[0.03] rounded-xl border border-white/[0.06] flex items-center gap-2">
+            <Activity className="w-4 h-4 text-cyan-400" />
             <div>
               <div className="text-[10px] text-slate-400 font-medium">Seismic Tremor</div>
               <div className="font-bold text-white">0.08 g (Stable)</div>
             </div>
           </div>
 
-          <div className="p-2.5 bg-slate-950/60 rounded-xl border border-slate-800 flex items-center gap-2">
-            <CloudRain className="w-4 h-4 text-cyan-400" />
+          <div className="p-2.5 bg-white/[0.03] rounded-xl border border-white/[0.06] flex items-center gap-2">
+            <CloudRain className="w-4 h-4 text-teal-300" />
             <div>
               <div className="text-[10px] text-slate-400 font-medium">Precipitation</div>
               <div className="font-bold text-white">{riskScore >= 60 ? 'Heavy Rain' : 'Light'}</div>
             </div>
           </div>
 
-          <div className="p-2.5 bg-slate-950/60 rounded-xl border border-slate-800 flex items-center gap-2">
+          <div className="p-2.5 bg-white/[0.03] rounded-xl border border-white/[0.06] flex items-center gap-2">
             <Mountain className="w-4 h-4 text-amber-400" />
             <div>
               <div className="text-[10px] text-slate-400 font-medium">Slope Soil</div>
@@ -228,67 +299,99 @@ export default function CitizenDashboard() {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
+      </motion.div>
 
       {/* Primary SOS Action Banner */}
-      <Link
-        href="/sos"
-        className="group block relative p-6 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-500 rounded-2xl shadow-2xl shadow-red-950/80 border border-red-400/30 text-center transition-all duration-200 active:scale-95"
-      >
-        <div className="flex flex-col items-center justify-center">
-          <div className="p-3.5 bg-white/20 rounded-full mb-2 group-hover:scale-110 transition-transform">
-            <ShieldAlert className="w-10 h-10 text-white animate-pulse" />
+      <motion.div variants={fadeUp}>
+        <MotionLink
+          href="/sos"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.96 }}
+          transition={spring}
+          className="group block relative p-6 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-500 rounded-2xl shadow-glow-red ring-1 ring-red-400/50 border border-red-400/50 text-center"
+        >
+          <div className="flex flex-col items-center justify-center">
+            <div className="p-3.5 bg-white/20 rounded-full mb-2 group-hover:scale-110 transition-transform">
+              <ShieldAlert className="w-10 h-10 text-white animate-pulse" />
+            </div>
+            <span className="text-2xl font-black text-white tracking-wider">
+              1-TAP EMERGENCY SOS 🆘
+            </span>
+            <span className="text-xs text-red-100 font-medium mt-1">
+              Tap to dispatch immediate Police, Army & APF rescue to your exact GPS coordinates
+            </span>
           </div>
-          <span className="text-2xl font-black text-white tracking-wider">
-            1-TAP EMERGENCY SOS 🆘
-          </span>
-          <span className="text-xs text-red-100 font-medium mt-1">
-            Tap to dispatch immediate Police, Army & APF rescue to your exact GPS coordinates
-          </span>
-        </div>
-      </Link>
+        </MotionLink>
+      </motion.div>
 
       {/* Safety Status Check-in Bar */}
-      <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+      <motion.div variants={fadeUp}>
+      <Card className="p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div>
           <h3 className="text-xs font-bold text-white">Are you and your family safe?</h3>
           <p className="text-[11px] text-slate-400">Let emergency authorities and rescue coordinators know</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <button
-            onClick={() => handleMarkStatus('SAFE')}
-            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-              safetyStatusMarked === 'SAFE'
-                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950'
-                : 'bg-emerald-950/70 border border-emerald-800 text-emerald-300 hover:bg-emerald-900'
-            }`}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            {safetyStatusMarked === 'SAFE' ? 'Reported Safe ✓' : 'I am Safe'}
-          </button>
+          <motion.div whileTap={{ scale: 0.94 }} className="flex-1 sm:flex-initial">
+            <Button
+              onClick={() => handleMarkStatus('SAFE')}
+              className={`w-full sm:w-auto ${
+                safetyStatusMarked === 'SAFE'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950 hover:bg-emerald-600'
+                  : 'bg-emerald-950/70 border border-emerald-800 text-emerald-300 hover:bg-emerald-900'
+              }`}
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                {safetyStatusMarked === 'SAFE' ? (
+                  <motion.span
+                    key="marked"
+                    initial={{ scale: 0.4, opacity: 0, rotate: -30 }}
+                    animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                    transition={softSpring}
+                    className="flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    Reported Safe ✓
+                  </motion.span>
+                ) : (
+                  <motion.span key="unmarked" className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                    I am Safe
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </Button>
+          </motion.div>
 
-          <Link
-            href="/sos"
-            className="flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold bg-red-950/70 border border-red-800 text-red-300 hover:bg-red-900 flex items-center justify-center gap-1.5"
-          >
-            <ShieldAlert className="w-4 h-4" />
-            Need Help
-          </Link>
+          <motion.div whileTap={{ scale: 0.94 }} className="flex-1 sm:flex-initial">
+            <Button
+              asChild
+              className="w-full bg-red-950/70 border border-red-500/50 text-red-200 hover:bg-red-900 hover:border-red-400"
+            >
+              <Link href="/sos">
+                <ShieldAlert className="w-4 h-4" />
+                Need Help
+              </Link>
+            </Button>
+          </motion.div>
         </div>
-      </div>
+      </Card>
+      </motion.div>
 
       {/* 2-Column Action Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <motion.div variants={fadeUp} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Nearest Evacuation Shelter */}
-        <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col justify-between space-y-3">
+        <motion.div whileHover={{ y: -3 }} transition={softSpring}>
+        <Card className="p-4 flex flex-col justify-between space-y-3 h-full">
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-400 uppercase flex items-center gap-1.5">
                 <Tent className="w-4 h-4 text-emerald-400" /> Nearest Shelter
               </span>
-              <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              <Badge variant="success">
                 {nearestShelter ? `${nearestShelter.totalCapacity - nearestShelter.currentOccupancy} spots left` : 'Open'}
-              </span>
+              </Badge>
             </div>
             <h4 className="font-bold text-white text-sm">
               {nearestShelter?.name || 'Dasharath Stadium Safe Haven'}
@@ -298,30 +401,29 @@ export default function CitizenDashboard() {
             </p>
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
-            <span className="text-xs font-semibold text-blue-400 flex items-center gap-1">
+          <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
+            <span className="text-xs font-semibold text-cyan-300 flex items-center gap-1">
               <Navigation className="w-3.5 h-3.5" />
               {nearestShelter?.distanceMeters ? `${(nearestShelter.distanceMeters / 1000).toFixed(1)} km away` : '1.4 km away'}
             </span>
-            <Link
-              href="/shelters"
-              className="text-xs text-slate-300 hover:text-white flex items-center gap-1 font-bold underline"
-            >
-              All Shelters <ArrowRight className="w-3 h-3" />
-            </Link>
+            <Button asChild variant="link" size="sm" className="h-auto p-0 text-slate-300 hover:text-white normal-case">
+              <Link href="/shelters">
+                All Shelters <ArrowRight className="w-3 h-3" />
+              </Link>
+            </Button>
           </div>
-        </div>
+        </Card>
+        </motion.div>
 
         {/* Field Hazard Report */}
-        <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col justify-between space-y-3">
+        <motion.div whileHover={{ y: -3 }} transition={softSpring}>
+        <Card className="p-4 flex flex-col justify-between space-y-3 h-full">
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-400 uppercase flex items-center gap-1.5">
-                <Camera className="w-4 h-4 text-amber-400" /> Field Incident Report
+                <Camera className="w-4 h-4 text-cyan-400" /> Field Incident Report
               </span>
-              <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                Community Feed
-              </span>
+              <Badge variant="default">Community Feed</Badge>
             </div>
             <h4 className="font-bold text-white text-sm">Report Blockage or Rising Waters</h4>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -329,24 +431,26 @@ export default function CitizenDashboard() {
             </p>
           </div>
 
-          <div className="pt-2 border-t border-slate-800/80 flex justify-end">
-            <Link
-              href="/report"
-              className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold text-center flex items-center justify-center gap-1.5"
-            >
-              <Camera className="w-3.5 h-3.5 text-amber-400" /> Submit Incident Report
-            </Link>
+          <div className="pt-2 border-t border-white/[0.06] flex justify-end">
+            <motion.div whileTap={{ scale: 0.96 }} className="w-full">
+              <Button asChild variant="default" className="w-full">
+                <Link href="/report">
+                  <Camera className="w-3.5 h-3.5" /> Submit Incident Report
+                </Link>
+              </Button>
+            </motion.div>
           </div>
-        </div>
-      </div>
+        </Card>
+        </motion.div>
+      </motion.div>
 
       {/* Mini Interactive Evacuation Map */}
-      <div className="space-y-2">
+      <motion.div variants={fadeUp} className="space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
             Kathmandu Safe Evacuation Zone Map
           </h3>
-          <Link href="/shelters" className="text-xs text-blue-400 hover:underline">
+          <Link href="/shelters" className="text-xs text-cyan-400 hover:text-cyan-300 hover:underline">
             Expand Map
           </Link>
         </div>
@@ -356,45 +460,43 @@ export default function CitizenDashboard() {
           disasters={activeAlerts}
           height="260px"
         />
-      </div>
+      </motion.div>
 
       {/* Emergency Helpline Direct Dials */}
-      <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl space-y-3">
+      <motion.div variants={fadeUp}>
+      <Card className="p-4 space-y-3">
         <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
-          <PhoneCall className="w-4 h-4 text-red-500" />
+          <PhoneCall className="w-4 h-4 text-cyan-400" />
           <span>Emergency Toll-Free Direct Dials (Nepal)</span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-          <a
-            href="tel:100"
-            className="p-2.5 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl block transition-colors"
-          >
-            <div className="text-[11px] text-slate-400">Nepal Police</div>
-            <div className="font-extrabold text-white text-sm mt-0.5 text-blue-400">📞 100</div>
-          </a>
-          <a
-            href="tel:1114"
-            className="p-2.5 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl block transition-colors"
-          >
-            <div className="text-[11px] text-slate-400">Armed Police (APF)</div>
-            <div className="font-extrabold text-white text-sm mt-0.5 text-red-400">📞 1114</div>
-          </a>
-          <a
-            href="tel:101"
-            className="p-2.5 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl block transition-colors"
-          >
-            <div className="text-[11px] text-slate-400">Fire Brigade</div>
-            <div className="font-extrabold text-white text-sm mt-0.5 text-amber-400">📞 101</div>
-          </a>
-          <a
-            href="tel:102"
-            className="p-2.5 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl block transition-colors"
-          >
-            <div className="text-[11px] text-slate-400">Ambulance (Red Cross)</div>
-            <div className="font-extrabold text-white text-sm mt-0.5 text-emerald-400">📞 102</div>
-          </a>
+          <motion.a whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }} href="tel:100" className="block">
+            <Card className="p-2.5 rounded-xl transition-colors hover:border-cyan-400/25">
+              <div className="text-[11px] text-slate-400">Nepal Police</div>
+              <div className="font-extrabold text-sm mt-0.5 text-cyan-300">📞 100</div>
+            </Card>
+          </motion.a>
+          <motion.a whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }} href="tel:1114" className="block">
+            <Card className="p-2.5 rounded-xl transition-colors hover:border-cyan-400/25">
+              <div className="text-[11px] text-slate-400">Armed Police (APF)</div>
+              <div className="font-extrabold text-sm mt-0.5 text-sky-300">📞 1114</div>
+            </Card>
+          </motion.a>
+          <motion.a whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }} href="tel:101" className="block">
+            <Card className="p-2.5 rounded-xl transition-colors hover:border-cyan-400/25">
+              <div className="text-[11px] text-slate-400">Fire Brigade</div>
+              <div className="font-extrabold text-sm mt-0.5 text-amber-400">📞 101</div>
+            </Card>
+          </motion.a>
+          <motion.a whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }} href="tel:102" className="block">
+            <Card className="p-2.5 rounded-xl transition-colors hover:border-cyan-400/25">
+              <div className="text-[11px] text-slate-400">Ambulance (Red Cross)</div>
+              <div className="font-extrabold text-sm mt-0.5 text-emerald-400">📞 102</div>
+            </Card>
+          </motion.a>
         </div>
-      </div>
-    </div>
+      </Card>
+      </motion.div>
+    </motion.div>
   );
 }
