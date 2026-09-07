@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Wifi, WifiOff, Bell, User, LogOut, UserCircle, LayoutDashboard } from 'lucide-react';
+import { ShieldCheck, Wifi, WifiOff, User, LogOut, UserCircle, LayoutDashboard } from 'lucide-react';
 import { getSocket } from '@/lib/socket';
 import { useAuthStore } from '@/stores/auth.store';
 import { ADMIN_APP_URL } from '@/lib/session';
+import NotificationCenter from '@/components/notification-center';
 import { Button } from '@/components/ui/button';
 import SajagMark from '@/components/brand/sajag-mark';
 import {
@@ -99,13 +100,7 @@ export default function Navbar() {
             {socketConnected ? 'Live Grid Active' : 'Connecting...'}
           </div>
 
-          <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
-            <Button asChild variant="outline" size="icon" title="Disaster Alerts">
-              <Link href="/alerts">
-                <Bell className="w-4 h-4" />
-              </Link>
-            </Button>
-          </motion.div>
+          <NotificationCenter />
 
           {user ? (
             <DropdownMenu>

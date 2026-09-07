@@ -69,7 +69,17 @@ export default function LoginPage() {
       setAuth(user, token);
       router.push('/');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Could not check you in. Please try again.');
+      const code = err.response?.data?.code;
+      if (code === 'EMAIL_TAKEN') {
+        // This email owns a password-protected account — steer to Sign In.
+        setSigninEmail(email);
+        setMode('signin');
+        setError(
+          'That email belongs to a password-protected account. Switch to Sign In to use it.'
+        );
+      } else {
+        setError(err.response?.data?.message || 'Could not check you in. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -96,7 +106,19 @@ export default function LoginPage() {
 
       router.push('/');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Sign in failed.');
+      const code = err.response?.data?.code;
+      if (code === 'PASSWORD_NOT_SET') {
+        // This email was set up as a password-less SMS check-in. Re-check-in
+        // with the same email below (name/phone can be refreshed).
+        setEmail(signinEmail);
+        setMode('register');
+        setError(
+          'This email was created through the one-tap Check-in, so it has no password. ' +
+            'Re-check-in below with the same email to pick the account back up.'
+        );
+      } else {
+        setError(err.response?.data?.message || 'Sign in failed.');
+      }
     } finally {
       setLoading(false);
     }
@@ -270,7 +292,8 @@ export default function LoginPage() {
                 </motion.div>
 
                 <p className="text-center text-[11px] text-slate-500">
-                  Municipal staff sign in here too, and land in the Command Center.
+                  Checked in before? Re-check-in with the same email to return. Municipal
+                  staff sign in here too, and land in the Command Center.
                 </p>
               </motion.form>
             )}

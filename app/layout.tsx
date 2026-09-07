@@ -3,6 +3,7 @@ import './globals.css';
 import Navbar from '@/components/navbar';
 import BottomNav from '@/components/bottom-nav';
 import PageTransition from '@/components/page-transition';
+import RealtimeNotifications from '@/components/realtime-notifications';
 
 export const metadata: Metadata = {
   title: { default: 'SAJAG', template: '%s · SAJAG' },
@@ -27,6 +28,7 @@ export default function RootLayout({
           <PageTransition>{children}</PageTransition>
         </main>
         <BottomNav />
+        <RealtimeNotifications />
       </body>
     </html>
   );

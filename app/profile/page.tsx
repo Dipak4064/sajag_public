@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { fadeUp, staggerContainer } from '@/lib/motion';
+import MyReports from '@/components/my-reports';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -90,6 +91,8 @@ export default function ProfilePage() {
           </Button>
         </Card>
       </motion.div>
+
+      <MyReports />
     </motion.div>
   );
 }
